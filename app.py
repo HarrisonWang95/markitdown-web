@@ -55,13 +55,17 @@ SUPPORTED_MIMETYPES = [
     'application/json',
     'application/xml',
     'text/xml',
+    'text/markdown',
     
     # 电子书
     'application/epub+zip',
     
     # 压缩文件
     'application/zip',
-    'application/x-zip-compressed'
+    'application/x-zip-compressed',
+    
+    #eml
+    'message/rfc822',
 ]
 MAX_WORKERS = 8 # 最大并发线程数
 
