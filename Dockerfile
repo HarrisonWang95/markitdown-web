@@ -37,4 +37,4 @@ EXPOSE 5050
 # 运行 Gunicorn
 # 使用 4 workers, 每个 worker 2 threads (总共 8 并发处理)
 # 增加超时时间以处理可能较长的解析任务
-CMD ["gunicorn", "--workers", "4", "--threads", "2", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+CMD ["gunicorn", "--workers", "4", "--threads", "2", "--bind", "0.0.0.0:5050", "--timeout", "120", "app:app"]
