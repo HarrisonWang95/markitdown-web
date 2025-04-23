@@ -11,6 +11,7 @@ flask-restful==0.3.9
 markitdown==0.1.1
 # 如果需要 LLM 功能，添加 openai
 openai==1.60.1  
+pdfminer
 # 如果需要 Azure Document Intelligence 功能
 # azure-ai-documentintelligence
 # azure-identity
