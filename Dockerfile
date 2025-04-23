@@ -1,4 +1,4 @@
-# 使用与 markitdown 兼容的 Python 版本 (根据需求文档是 3.10+)
+# 使用与 markitdown 兼容的 Python 版本 (根据需求文档是 3.13)
 FROM python:3.13-slim
 
 # 设置工作目录
