@@ -8,7 +8,7 @@ flask-restful==0.3.9
 # 例如，如果 markitdown 在父目录的 packages/markitdown 下：
 # ./packages/markitdown[all]
 # 或者如果已经安装在环境中，可以省略
-markitdown==0.1.1
+markitdown[all]==0.1.1
 # 如果需要 LLM 功能，添加 openai
 openai==1.60.1  
 pdfminer
