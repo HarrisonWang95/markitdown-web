@@ -1,5 +1,5 @@
 # 使用与 markitdown 兼容的 Python 版本 (根据需求文档是 3.10+)
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 # 设置工作目录
 WORKDIR /app
