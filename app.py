@@ -456,6 +456,6 @@ def temp_file(file_path):
 if __name__ == '__main__':
     # 仅用于本地开发调试
     # 生产环境应使用 Gunicorn
-    app.run(debug=True, host='0.0.0.0', port=5010)
+    app.run(debug=True, host='0.0.0.0', port=5050)
 
 
