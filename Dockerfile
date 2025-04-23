@@ -29,7 +29,7 @@ RUN mkdir -p /tmp/markitdown_uploads && chown -R nobody:nogroup /tmp/markitdown_
 # 如果 Gunicorn 以其他用户运行，需要相应调整
 
 # 暴露端口
-EXPOSE 5000
+EXPOSE 5050
 
 # 设置环境变量 (可选)
 # ENV OPENAI_API_KEY="your_openai_key" # 不推荐硬编码，最好在运行时注入
