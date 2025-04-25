@@ -19,14 +19,14 @@ from time import sleep
 warnings.filterwarnings('ignore', message="Cannot set gray non-stroke color.*", module='pdfminer')
 # 尝试导入 openai，如果需要 LLM 功能
 try:
-    from openai import OpenAI
+    from openai import AzureOpenAI
 except ImportError:
-    OpenAI = None
+    AzureOpenAI = None
 from contextlib import contextmanager
 from enum import Enum
 
 # --- 配置 ---
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 100 MB
 MAX_PDF_PAGES = 500
 SUPPORTED_MIMETYPES = [
     # 文档格式
@@ -114,10 +114,23 @@ def get_markitdown_instance(args: Dict[str, str]) -> MarkItDown:
         # from azure.identity import DefaultAzureCredential
         # md_kwargs['docintel_credential'] = DefaultAzureCredential()
 
-    if use_llm and OpenAI:
+    if use_llm and AzureOpenAI:
         # 注意：需要配置 OpenAI API Key，通常通过环境变量 OPENAI_API_KEY
         try:
-            client = OpenAI()
+            # Azure OpenAI 配置从环境变量读取
+            openai_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+            openai_api_base = os.environ.get("AZURE_OPENAI_ENDPOINT")
+            openai_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-02-01-preview")
+            openai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+
+            if not openai_api_key or not openai_api_base:
+                raise BadRequest("缺少 Azure OpenAI 配置，请设置环境变量。")
+
+            client = AzureOpenAI(
+                api_key=openai_api_key,
+                azure_endpoint=openai_api_base,
+                api_version=openai_api_version
+            )
             md_kwargs['llm_client'] = client
             md_kwargs['llm_model'] = llm_model
         except Exception as e:
@@ -360,7 +373,7 @@ class UploadResource(Resource):
 
 
 class ParseStatusResource(Resource):
-    print(tasks)
+    # print(tasks)
     def get(self, task_id):
         task = tasks.get(task_id)
         if not task:
@@ -383,7 +396,9 @@ class ParseStatusResource(Resource):
 class UploadSyncResource(Resource):
     def post(self):
         # 获取初始响应
+        # print(Resource.__dict__)
         upload_response = UploadResource().post()
+        # print(upload_response)
         if isinstance(upload_response, tuple):
             return upload_response  # 如果是错误响应，直接返回
         
