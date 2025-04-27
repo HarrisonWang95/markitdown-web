@@ -1,6 +1,7 @@
 import os
 import uuid
 import io
+from flask.views import F
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
@@ -32,6 +33,7 @@ SUPPORTED_MIMETYPES = [
     # 文档格式
     'application/pdf',  # PDF
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # Word
+    'application/msword',  # Word do
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # Excel
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # PowerPoint
     
