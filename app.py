@@ -1,7 +1,6 @@
 import os
 import uuid
 import io
-from flask.views import F
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
