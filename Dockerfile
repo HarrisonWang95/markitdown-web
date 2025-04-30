@@ -7,11 +7,10 @@ WORKDIR /app
 # 安装系统依赖 (如果 markitdown[all] 需要)
 # 例如，pdfminer.six 可能需要字体或库，音频处理需要 ffmpeg
 # 查阅 markitdown 及其依赖项的文档确定所需系统包
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     ffmpeg \
-#     # 其他可能的依赖，如 build-essential, libpoppler-cpp-dev 等
-#     && rm -rf /var/lib/apt/lists/*
-# 暂时注释掉，如果遇到问题再取消注释并添加具体包
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    # 其他可能的依赖，如 build-essential, libpoppler-cpp-dev 等
+    && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
 COPY requirements.txt .
