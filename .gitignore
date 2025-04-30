@@ -1,0 +1,31 @@
+# 忽略 PDF 文件
+*.pdf
+
+# 忽略 Markdown 文件
+*.md
+
+# 忽略 JPG 图片文件
+*.jpg
+
+# 忽略 Word 文档文件
+*.doc
+*.docx
+test*
+# 忽略 Excel 表格文件
+*.xls
+*.xlsx
+# 忽略 PowerPoint 演示文件
+*.ppt
+*.pptx
+# 忽略压缩文件
+*.zip
+*.rar
+#忽略图片
+*.png
+*.jpeg
+*.jpg
+*.gif
+*.bmp
+*.ico
+*.svg
+*.webp
