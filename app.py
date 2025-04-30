@@ -99,14 +99,14 @@ class TaskStatus:
 tasks = {}  # {task_id: TaskStatus}
 TASK_EXPIRE_SECONDS = 7200  # 2小时
 
-def set_task(task_id, task_status):
-    tasks[task_id] = task_status
+# def set_task(task_id, task_status):
+#     tasks[task_id] = task_status
 
 def get_task(task_id):
     now = time.time()
     task_status=tasks.get(task_id)
     # 清理过期任务
-    expired = [k for k, v in tasks.items() if v.timestamp and now - v.timestamp > TASK_EXPIRE_SECONDS]
+    expired = [k for k, v in tasks.items() if v.get('timestamp') and now - v.get('timestamp') > TASK_EXPIRE_SECONDS]
     for k in expired:
         del tasks[k]
     return task_status
@@ -352,13 +352,14 @@ class UploadResource(Resource):
                 "status": "pending",
                 "result": None,
                 "error": None,
+                "timestamp": time.time(),  # 新增字段，记录任务创建时间戳
                 "metadata": {
                     "name": original_filename,
                     "size": file_size if not is_url else 'pending download',
                     "mime_type": content_type,
                     "pages": "" # 稍后更新
-                },
-                "timestamp": time.time()  # 新增字段，记录任务创建时间戳
+                }
+                
             }
 
             # 提交后台处理
@@ -502,6 +503,6 @@ def temp_file(file_path):
 if __name__ == '__main__':
     # 仅用于本地开发调试
     # 生产环境应使用 Gunicorn
-    app.run(debug=false, host='0.0.0.0', port=5050)
+    app.run(debug=True, host='0.0.0.0', port=5050)
 
 
