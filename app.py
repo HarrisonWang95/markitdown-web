@@ -86,6 +86,7 @@ api = Api(app)
 # --- 异步任务处理 ---
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 from dataclasses import dataclass
+# import threading
 
 @dataclass
 class TaskStatus:
@@ -93,8 +94,32 @@ class TaskStatus:
     result: str = None
     error: str = None
     metadata: dict = None
+    timestamp: float = None  # 新增字段，记录任务创建时间戳
 
 tasks = {}  # {task_id: TaskStatus}
+TASK_EXPIRE_SECONDS = 7200  # 2小时
+
+def set_task(task_id, task_status):
+    tasks[task_id] = task_status
+
+def get_task(task_id):
+    now = time.time()
+    task_status=tasks.get(task_id)
+    # 清理过期任务
+    expired = [k for k, v in tasks.items() if v.timestamp and now - v.timestamp > TASK_EXPIRE_SECONDS]
+    for k in expired:
+        del tasks[k]
+    return task_status
+
+# def cleanup_tasks():
+#     while True:
+#         now = time.time()
+#         expired = [k for k, v in tasks.items() if v.timestamp and now - v.timestamp > TASK_EXPIRE_SECONDS]
+#         for k in expired:
+#             del tasks[k]
+#         time.sleep(600)  # 每10分钟清理一次
+
+# threading.Thread(target=cleanup_tasks, daemon=True).start()
 
 # --- MarkItDown 实例 ---
 # 根据请求参数动态创建 MarkItDown 实例
@@ -376,7 +401,7 @@ class UploadResource(Resource):
 class ParseStatusResource(Resource):
     # print(tasks)
     def get(self, task_id):
-        task = tasks.get(task_id)
+        task = get_task(task_id) #tasks.get(task_id)
         if not task:
             return {"code": 404, "message": "未找到任务", "data": None}, 404
 
