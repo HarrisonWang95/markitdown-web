@@ -35,6 +35,8 @@ SUPPORTED_MIMETYPES = [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # Excel
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # PowerPoint
     'application/msword',  # Word doc
+    "application/vnd.ms-excel",
+    "application/excel",
     
     # 图片格式
     'image/jpeg',
