@@ -357,7 +357,8 @@ class UploadResource(Resource):
                     "size": file_size if not is_url else 'pending download',
                     "mime_type": content_type,
                     "pages": "" # 稍后更新
-                }
+                },
+                "timestamp": time.time()  # 新增字段，记录任务创建时间戳
             }
 
             # 提交后台处理
