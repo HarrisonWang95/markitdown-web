@@ -8,15 +8,15 @@ from flask_restful import Api, Resource
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import BadRequest, InternalServerError, RequestURITooLarge
 from markitdown import MarkItDown
+from pathlib import Path
 from pdfminer.pdfparser import PDFSyntaxError # 用于捕获PDF页数解析错误
 from pdfminer.pdfdocument import PDFTextExtractionNotAllowed # 用于捕获PDF页数解析错误
-from pathlib import Path
-import warnings
+import logging
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
+
 import time
 from time import sleep
 
-# 过滤特定消息模式的警告
-warnings.filterwarnings('ignore', message="Cannot set gray non-stroke color.*", module='pdfminer')
 # 尝试导入 openai，如果需要 LLM 功能
 try:
     from openai import AzureOpenAI
