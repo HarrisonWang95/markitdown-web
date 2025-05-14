@@ -19,6 +19,11 @@ from time import sleep
 
 # 尝试导入 openai，如果需要 LLM 功能
 try:
+    # from openai import AzureOpenAI
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+try:
     from openai import AzureOpenAI
 except ImportError:
     AzureOpenAI = None
@@ -44,12 +49,18 @@ SUPPORTED_MIMETYPES = [
     'image/gif',
     'image/webp',
     'image/tiff',
+    'image/bmp',         # BMP
+    'image/svg+xml',     # SVG
+    'image/heic',        # HEIC
+    'image/x-icon',      # ICO
+    'image/vnd.microsoft.icon', # ICO (另一种写法)
     
     # 音频格式
     'audio/mpeg',
     'audio/wav',
     'audio/ogg',
     'audio/webm',
+    'audio/mp4a-latm',
     
     # 文本格式
     'text/plain',
@@ -128,28 +139,38 @@ def get_task(task_id):
 from typing import Dict, Optional, Union
 
 def get_markitdown_instance(args: Dict[str, str]) -> MarkItDown:
+    DEFAULT_LLM_PROMPT="""你是一个专业的图片转换器，你需要根据图片中的内容判断是否符合以下某几个场景，输出markdown文本或者图片描述。
+    场景一：使用markdown语法，将图片中识别到的文字转换为markdown格式输出。你必须做到：
+    1. 输出和使用识别到的图片的相同的语言，例如，识别到英语的字段，输出的内容必须是英语。
+    2. 不要解释和输出无关的文字，直接输出图片中的内容。例如，严禁输出 “以下是我根据图片内容生成的markdown文本：”这样的例子，而是应该直接输出markdown。
+    3. 内容不要包含在```markdown ```中、段落公式使用 $$ $$ 的形式、行内公式使用 $ $ 的形式、忽略掉长直线、忽略掉页码。再次强调，不要解释和输出无关的文字，直接输出图片中的内容。
+    4. 对于图中文本之间包含特定关系，需使用思维导图、流程图等mermaid形式的mardown输出，保留文本之间的关联关系。
+    5. 对于图中的表格，需使用markdown表格的形式输出，保留表格结构。  
+    6. 忽略所有水印信息。
+    7. 文字中所有标红或者加粗或其它突出的部分，请用markdown的** **的格式标粗。
+    场景二：请对图片上的非文本元素（图表、照片、人像等）进行描述和总结。语言请参考"场景一"使用的语言，不存在“场景一”请使用中文。
+    """
     enable_plugins = args.get('enable_plugins', 'false').lower() == 'true'
     use_docintel = args.get('use_docintel', 'false').lower() == 'true'
     docintel_endpoint = args.get('docintel_endpoint')
     use_llm = args.get('use_llm', 'false').lower() == 'true'
     llm_model = args.get('llm_model', 'gpt-4o') # 默认模型
-
-    md_kwargs = {'enable_plugins': enable_plugins}
+    llm_prompt=args.get('llm_prompt',DEFAULT_LLM_PROMPT)
+    keep_data_uris=args.get('keep_data_uris', 'false').lower() == 'true'
+    md_kwargs = {'enable_plugins': enable_plugins,'keep_data_uris':keep_data_uris,"llm_prompt":llm_prompt}
 
     if use_docintel and docintel_endpoint:
         md_kwargs['docintel_endpoint'] = docintel_endpoint
         # 注意：可能需要配置 Azure 凭证，这里假设使用默认凭证链
         # from azure.identity import DefaultAzureCredential
         # md_kwargs['docintel_credential'] = DefaultAzureCredential()
-
-    if use_llm and AzureOpenAI:
-        # 注意：需要配置 OpenAI API Key，通常通过环境变量 OPENAI_API_KEY
+    if use_llm and AzureOpenAI and llm_model=='Qwen2.5-VL-72B-Instruct':
         try:
             # Azure OpenAI 配置从环境变量读取
-            openai_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-            openai_api_base = os.environ.get("AZURE_OPENAI_ENDPOINT")
+            openai_api_key = os.environ.get("AZURE_OPENAI_API_KEY","")
+            openai_api_base = os.environ.get("AZURE_OPENAI_ENDPOINT","")
             openai_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-02-01-preview")
-            openai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+            openai_deployment = llm_model
 
             if not openai_api_key or not openai_api_base:
                 raise BadRequest("缺少 Azure OpenAI 配置，请设置环境变量。")
@@ -161,12 +182,49 @@ def get_markitdown_instance(args: Dict[str, str]) -> MarkItDown:
             )
             md_kwargs['llm_client'] = client
             md_kwargs['llm_model'] = llm_model
+            # md_kwargs['llm_prompt'] = llm_prompt
+        except Exception as e:
+            app.logger.warning(f"无法初始化 AzureOpenAI 客户端: {e}. LLM 功能将不可用。")
+            # 可以选择在这里报错或仅禁用 LLM
+            pass # 或者 raise BadRequest("无法初始化 LLM 客户端，请检查 API Key")
+
+    if use_llm and OpenAI and llm_model=='Qwen2.5-VL-72B-Instruct':
+        # 注意：需要配置 OpenAI API Key，通常通过环境变量 OPENAI_API_KEY
+        try:
+            # Azure OpenAI 配置从环境变量读取
+            # openai_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+            # openai_api_base = os.environ.get("AZURE_OPENAI_ENDPOINT")
+            # openai_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-02-01-preview")
+            # openai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+
+            # if not openai_api_key or not openai_api_base:
+            #     raise BadRequest("缺少 Azure OpenAI 配置，请设置环境变量。")
+
+            # client = AzureOpenAI(
+            #     api_key=openai_api_key,
+            #     azure_endpoint=openai_api_base,
+            #     api_version=openai_api_version
+            # )
+            
+            # OpenAI 配置从环境变量读取
+            openai_api_key = os.environ.get("OPENAI_API_KEY","")
+            openai_api_base = os.environ.get("OPENAI_API_BASE", "")
+            if not openai_api_key:
+                raise BadRequest("缺少 OpenAI 配置，请设置 OPENAI_API_KEY 环境变量。")
+
+            client = OpenAI(
+                api_key=openai_api_key,
+                base_url=openai_api_base
+            )
+            md_kwargs['llm_client'] = client
+            md_kwargs['llm_model'] = llm_model
+            # md_kwargs['llm_prompt'] = llm_prompt
+  
         except Exception as e:
             app.logger.warning(f"无法初始化 OpenAI 客户端: {e}. LLM 功能将不可用。")
             # 可以选择在这里报错或仅禁用 LLM
             pass # 或者 raise BadRequest("无法初始化 LLM 客户端，请检查 API Key")
-
-    return MarkItDown(**md_kwargs)
+    return MarkItDown(**md_kwargs),md_kwargs
 
 # --- 文件处理和解析任务 ---
 def get_pdf_page_count(file_stream):
@@ -188,9 +246,8 @@ def process_file(task_id, file_path_or_url, is_url, original_filename, content_t
     file_stream = None
     temp_file_path = None
     downloaded = False
-
     try:
-        md = get_markitdown_instance(args)
+        md,md_kwargs = get_markitdown_instance(args)
         metadata = tasks[task_id]['metadata']
 
         if is_url:
@@ -257,7 +314,7 @@ def process_file(task_id, file_path_or_url, is_url, original_filename, content_t
         # with open(processing_input, 'rb') as f:
         #    result = md.convert(f)
         # 假设 convert 可以接受路径:
-        result = md.convert(processing_input)
+        result = md.convert(processing_input,**md_kwargs)
 
         tasks[task_id]['status'] = 'success'
         tasks[task_id]['result'] = result.text_content
@@ -306,7 +363,6 @@ class UploadResource(Resource):
         original_filename = None
         content_type = None
         args = request.args.to_dict() # 获取查询参数 ?enable_plugins=true&...
-
         try:
             if 'file' in request.files:
                 # --- 文件流上传 ---
