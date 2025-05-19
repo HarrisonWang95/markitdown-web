@@ -164,7 +164,7 @@ def get_markitdown_instance(args: Dict[str, str]) -> MarkItDown:
         # 注意：可能需要配置 Azure 凭证，这里假设使用默认凭证链
         # from azure.identity import DefaultAzureCredential
         # md_kwargs['docintel_credential'] = DefaultAzureCredential()
-    if use_llm and AzureOpenAI and llm_model=='Qwen2.5-VL-72B-Instruct':
+    if use_llm and AzureOpenAI and llm_model=='gpt-4o':
         try:
             # Azure OpenAI 配置从环境变量读取
             openai_api_key = os.environ.get("AZURE_OPENAI_API_KEY","")
@@ -258,7 +258,9 @@ def process_file(task_id, file_path_or_url, is_url, original_filename, content_t
             # 校验 Content-Type (如果服务器提供了)
             url_content_type = response.headers.get('content-type', '').split(';')[0]
             if url_content_type and url_content_type not in SUPPORTED_MIMETYPES:
-                 raise BadRequest(f"不支持的文件类型: {url_content_type}")
+                pass
+                app.logger.warning(f"不支持的 URL 内容类型: {url_content_type}")
+                # raise BadRequest(f"不支持的文件类型: {url_content_type}")
 
             # 校验大小
             content_length = response.headers.get('content-length')
