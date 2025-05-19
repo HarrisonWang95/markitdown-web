@@ -258,7 +258,6 @@ def process_file(task_id, file_path_or_url, is_url, original_filename, content_t
             # 校验 Content-Type (如果服务器提供了)
             url_content_type = response.headers.get('content-type', '').split(';')[0]
             if url_content_type and url_content_type not in SUPPORTED_MIMETYPES:
-                pass
                 app.logger.warning(f"不支持的 URL 内容类型: {url_content_type}")
                 # raise BadRequest(f"不支持的文件类型: {url_content_type}")
 
@@ -376,7 +375,8 @@ class UploadResource(Resource):
                 content_type = file.content_type
 
                 if content_type not in SUPPORTED_MIMETYPES:
-                    raise BadRequest(f"不支持的文件类型: {content_type}")
+                    app.logger.warning(f"不支持的文件类型: {content_type}")
+                    # raise BadRequest(f"不支持的文件类型: {content_type}")
 
                 # 保存文件到临时位置
                 file_path = os.path.join(UPLOAD_FOLDER, f"{task_id}_{original_filename}")
