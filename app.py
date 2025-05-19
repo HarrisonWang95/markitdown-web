@@ -469,17 +469,25 @@ class ParseStatusResource(Resource):
 
         response_data = {
             "task_id": task_id,
-            "status": task['status'],
+            "status": task.get('status'),
             "metadata": task.get('metadata', {}),
             "content": task.get('result'),
             "error": task.get('error')
         }
 
-        return jsonify({
+        if task.get('status') == 'error':
+            return jsonify({
+            "code": 400,
+            "message": "查询成功但出错",
+            "data": response_data
+        })
+        else:
+            return jsonify({
             "code": 200,
             "message": "查询成功",
             "data": response_data
         })
+        
 
 class UploadSyncResource(Resource):
     def post(self):
