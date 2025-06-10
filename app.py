@@ -12,6 +12,7 @@ from pathlib import Path
 from pdfminer.pdfparser import PDFSyntaxError # 用于捕获PDF页数解析错误
 from pdfminer.pdfdocument import PDFTextExtractionNotAllowed # 用于捕获PDF页数解析错误
 import logging
+from docx_validator import validate_and_output_json
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 import time
@@ -527,8 +528,23 @@ class UploadSyncResource(Resource):
             
             # 使用非阻塞的 sleep
             sleep(1)
-# --- 路由 ---
-api.add_resource(UploadResource, '/api/v1/upload')
+
+
+class AuditDocxRulesResource(Resource):
+    def post(self):
+        try:
+            if 'file' not in request.files:
+                return {"code": 400, "message": "缺少 docx 文件 (file)", "data": None}, 400
+            docx_file = request.files['file']
+            print(docx_file)
+            rules_path = './rules_p1.md'
+            result_dict = validate_and_output_json(docx_file, rules_path)
+            return {"code": 200, "message": "校验成功", "data": result_dict}
+        except Exception as e:
+            app.logger.exception(f"/api/v1/audit/docx/rules 校验异常: {e}")
+            return {"code": 500, "message": f"内部服务器错误: {e}", "data": None}, 500
+
+api.add_resource(AuditDocxRulesResource, '/api/v1/audit/docx/rules')
 api.add_resource(ParseStatusResource, '/api/v1/parse/<string:task_id>')
 api.add_resource(UploadSyncResource, '/api/v1/upload/parse')
 
