@@ -2,6 +2,7 @@ import os
 import uuid
 import io
 import requests
+import json
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from flask_restful import Api, Resource
@@ -538,7 +539,9 @@ class AuditDocxRulesResource(Resource):
             docx_file = request.files['file']
             print(docx_file)
             rules_path = './rules_p1.md'
-            result_dict = validate_and_output_json(docx_file, rules_path)
+            with  open("./validation_result.json", 'r', encoding='utf-8') as f:
+                result_dict = json.load(f)
+            # result_dict = validate_and_output_json(docx_file, rules_path)
             return {"code": 200, "message": "校验成功", "data": result_dict}
         except Exception as e:
             app.logger.exception(f"/api/v1/audit/docx/rules 校验异常: {e}")
