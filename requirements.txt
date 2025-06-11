@@ -12,6 +12,7 @@ markitdown[all]==0.1.1
 # 如果需要 LLM 功能，添加 openai
 openai==1.60.1  
 pdfminer
+python-docx
 # 如果需要 Azure Document Intelligence 功能
 # azure-ai-documentintelligence
 # azure-identity
