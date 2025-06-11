@@ -1,0 +1,103 @@
+{
+    "issues": [
+        {
+            "issueType": "标序问题-跳序问题",
+            "specificWord": "四、",
+            "sentence": "四、专项行动风险问题整改",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "05-02",
+            "additionalNotes": "排版第一层：检查“一、”后是否跳过“二、”直接出现“三、”"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "资产脆弱性修复落实不到位",
+            "sentence": "资产脆弱性修复落实不到位",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "主机系统访问控制权限设置过于宽松",
+            "sentence": "主机系统访问控制权限设置过于宽松",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "威胁防护与监测能力有待提升",
+            "sentence": "威胁防护与监测能力有待提升",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "应急响应不及时，人员安全意识不足",
+            "sentence": "应急响应不及时，人员安全意识不足",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "缺乏统一日志管理体系",
+            "sentence": "缺乏统一日志管理体系",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落-自然段左空两字",
+            "specificWord": "特此报告。",
+            "sentence": "特此报告。",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-02",
+            "additionalNotes": "自然段左空二字"
+        },
+        {
+            "issueType": "段落- 回行顶格",
+            "specificWord": "特此报告。",
+            "sentence": "特此报告。",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-03",
+            "additionalNotes": "回行顶格"
+        },
+        {
+            "issueType": "段落- 回行顶格",
+            "specificWord": "国际公司联系人：金雷，电话：159200...",
+            "sentence": "国际公司联系人：金雷，电话：15920082559，电子邮箱：kinkijin@cmi.chinamobile.com。",
+            "suggestion": {
+                "operation": "提醒",
+                "after": ""
+            },
+            "rule_id": "14-03",
+            "additionalNotes": "回行顶格"
+        }
+    ]
+}
