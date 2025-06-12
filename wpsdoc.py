@@ -87,6 +87,9 @@ def Document(html: str | IO[bytes] | None = None) -> DocumentObject:
     elif hasattr(html, 'read'):
         # 处理文件对象
         html_content = html.read()
+        # 如果读取到的是字节，则需要解码
+        if isinstance(html_content, bytes):
+            html_content = html_content.decode('utf-8')  # 使用适当的编码进行解码
     else:
         raise ValueError("Invalid input type")
     
