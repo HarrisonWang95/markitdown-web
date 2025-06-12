@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from docx import Document
+from wpsdoc import Document
 import json
 import re
 import io
@@ -73,7 +73,6 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
         doc = Document(io.BytesIO(file_bytes))
     else:
         doc = Document(docx_file)
-    print(doc.paragraphs)
     # Load 
     rules = load_rules(rules_path)
     issues: List[Issue] = []
@@ -97,9 +96,18 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
     
     # Regex for "一、", "二、", ..., "十、", "十一、", etc. (simplified for now)
     level1_pattern = re.compile(r"^([一二三四五六七八九十]+(?:[一二三四五六七八九])?)、")
-    
+    i=0
     for p in doc.paragraphs:
-        text_content = p.text.strip()
+        text_content = ''  # 初始化文本内容
+        # for run in p.runs:
+        #     text_content += run.text  # 拼接所有run的文本
+        text_content = p.text#.strip()
+        html_content=p.html
+        first_line_indent = p.paragraph_format.first_line_indent
+        i+=1
+        # with open("debug.csv", "a") as f:
+        print(f"{i}: {first_line_indent},{html_content},{text_content}\n")
+            
         if not text_content: continue
         match = level1_pattern.match(text_content)
         if match:
@@ -131,8 +139,8 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
     # Standard two-character indent in EMUs (approx 0.85cm, common in Word for '2 char' indent)
     # 1 inch = 914400 EMUs. 2 chars (e.g. 12pt SongTi, each char is 12pt wide) ~ 24pt.
     # 24pt * 12700 EMU/pt = 304800 EMU.
-    TWO_CHAR_INDENT_EMU = 304800 
-    INDENT_TOLERANCE = 15000 # A tolerance for indent comparison (approx 0.5mm)
+    TWO_CHAR_INDENT_EMU = 2 
+    INDENT_TOLERANCE = 0# A tolerance for indent comparison (approx 0.5mm)
 
     for p_idx, p in enumerate(doc.paragraphs):
         text_content = p.text.strip()
@@ -160,11 +168,11 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
         if not is_any_known_heading: 
             first_line_indent = p.paragraph_format.first_line_indent
             # Check if first_line_indent is None or less than expected (with tolerance)
-            if first_line_indent is None or first_line_indent < (TWO_CHAR_INDENT_EMU - INDENT_TOLERANCE):
+            if first_line_indent is None or first_line_indent != TWO_CHAR_INDENT_EMU:
                 rule_info = rules.get("14-02", {})
                 issues.append(Issue(
                     issueType=rule_info.get('type_scene', "段落-自然段左空两字"),
-                    specificWord=text_content[:20] + ("..." if len(text_content) > 20 else ""),
+                    specificWord=text_content[:20] ,
                     sentence=text_content,
                     suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
                     rule_id="14-02",
@@ -179,7 +187,7 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
                 rule_info = rules.get("14-03", {})
                 issues.append(Issue(
                     issueType=rule_info.get('type_scene', "段落- 回行顶格"),
-                    specificWord=text_content[:20] + ("..." if len(text_content) > 20 else ""),
+                    specificWord=text_content[:20] ,
                     sentence=text_content,
                     suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
                     rule_id="14-03",
@@ -249,7 +257,7 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
                 
                 # Try to get the heading prefix for specificWord
                 heading_prefix = p_text_content.split(' ')[0]
-                if len(heading_prefix) > 15: heading_prefix = heading_prefix[:15] + "..."
+                if len(heading_prefix) > 15: heading_prefix = heading_prefix[:15] 
 
                 issues.append(Issue(
                     issueType=rule_info.get('type_scene', f"格式问题-{rule_id}"),
@@ -287,6 +295,13 @@ def validate_and_output_json(docx_file, rules_path: str) -> dict:
     for issue in result_dict.get('issues', []):
         if 'suggestion' in issue and 'after' not in issue['suggestion']:
             issue['suggestion']['after'] = ""
+    output_path = "./validation_result.json"
+    if output_path:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(result_dict, f, ensure_ascii=False, indent=4)
+            # f.write(str(result_dict).replace("'", '"'))
+            print(f"校验完成，结果已保存到 {output_path}")
+    # 
     return result_dict
     
     # The following lines for writing to output_path and returning json_str are now effectively dead code
@@ -302,12 +317,13 @@ def validate_and_output_json(docx_file, rules_path: str) -> dict:
 
 if __name__ == "__main__":
     # 使用示例文件进行测试
-
+    docx_file="./标准测试html.txt"
+    # docx_file="./转完p1.docx"
     rules_file = "./rules_p1.md"
-    output_file = "/Users/jiumingwang/Documents/Python 项目/doc/validation_result.json"
+    output_file = "./validation_result.json"
     
     print(f"开始校验文档: {docx_file}")
     print(f"使用规则文件: {rules_file}")
     
     # 执行校验并输出到文件
-    validate_and_output_json(docx_file, rules_file, output_file)
+    validate_and_output_json(docx_file, rules_file)
