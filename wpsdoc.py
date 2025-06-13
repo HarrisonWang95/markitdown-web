@@ -3,7 +3,7 @@ from typing import IO
 
 class Run:
     def __init__(self, text,html, font_name, bold, font_size):
-        self.text = text
+        self.text = text.replace("&nbsp;", " ")
         self.html = html
         self.font = Font(font_name, bold, font_size)
 
@@ -24,10 +24,13 @@ class ParagraphFormat:
 class Paragraph:
     def __init__(self, runs):
         self.runs = runs
+        self.type = ""
         self.text = ''.join([run.text for run in runs])
         self.html = ''.join([run.html for run in runs])
         self.paragraph_format = ParagraphFormat()
         self._set_font_properties()
+        self.info=f"{self.font},{self.bold},{self.size},{self.paragraph_format.first_line_indent},{self.paragraph_format.left_indent},{self.text}"
+        
 
     def _set_font_properties(self):
         font_names = set([run.font.name for run in self.runs])
@@ -37,6 +40,22 @@ class Paragraph:
         self.font = font_names.pop() if len(font_names) == 1 else None
         self.bold = bold_values.pop() if len(bold_values) == 1 else None
         self.size = font_sizes.pop() if len(font_sizes) == 1 else None
+    def set_type(self, type: str, level: int = None):
+        """设置段落类型
+        :param type: 段落类型（body/heading）
+        :param level: 标题等级（1-6），仅当type=heading时有效
+        """
+        if type == 'body':
+            self.type = 'body'
+        elif type == 'heading':
+            if not 1 <= level <= 10:
+                raise ValueError("标题等级必须在1-10之间")
+            self.type = f'heading{level}'
+        else:
+            raise ValueError("无效的段落类型")
+        
+        # 保留原有样式属性
+        self._keep_original_style()
 
 
 class DocumentObject:
@@ -49,7 +68,7 @@ class DocumentObject:
         else:
             body_content = ""
         # 提取段落信息，假设段落以<p class=MsoNormal>标签分隔
-        paragraph_pattern = r'<p class=MsoNormal.*?>.*?</p>'
+        paragraph_pattern = r'<p class=.*?>.*?</p>'
         paragraph_matches = re.findall(paragraph_pattern, body_content, re.DOTALL)
         self.paragraphs = []
         for para_match in paragraph_matches:
@@ -71,12 +90,18 @@ class DocumentObject:
                 runs.append(run)
             paragraph = Paragraph(runs)
             # 提取首行缩进信息
-            indent_pattern = r'mso-char-indent-count:([^;]+);'
-            indent_match = re.search(indent_pattern, para_match)
-            if indent_match:
-                paragraph.paragraph_format.first_line_indent = int(float(indent_match.group(1)))
-            print(paragraph.text)
-            if(paragraph.text!="&nbsp;"):
+            first_line_indent_pattern = r'mso-char-indent-count:([^;]+);'
+            first_line_indent_match = re.search(first_line_indent_pattern , para_match)
+            if first_line_indent_match:
+                paragraph.paragraph_format.first_line_indent = int(float(first_line_indent_match.group(1)))
+            
+            #回行顶格不需要校验
+            # left_indent_pattern = r'mso-list:l1 level1 lfo1; margin-left:([^;]+);'
+            # left_indent_match = re.search(left_indent_pattern, para_match)
+            # if left_indent_match:
+            #     paragraph.paragraph_format.left_indent = int(float(left_indent_match.group(1)))
+
+            if(paragraph.text!="&nbsp;" and paragraph.text != " "):
                 self.paragraphs.append(paragraph)
 
 def Document(html: str | IO[bytes] | None = None) -> DocumentObject:

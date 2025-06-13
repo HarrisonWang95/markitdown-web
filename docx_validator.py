@@ -4,7 +4,7 @@ from wpsdoc import Document
 import json
 import re
 import io
-
+WORD_LENGTH_THRESHOLD = 20
 @dataclass
 class Suggestion:
     operation: str  # "替换" or "提醒"
@@ -62,7 +62,7 @@ def load_rules(rules_file: str) -> Dict[str, Dict]:
                         'description': parts[2],
                         'example': parts[3],
                         'operation_suggestion': parts[4]
-                    }
+                    } 
     return rules_data
 
 def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
@@ -73,216 +73,289 @@ def validate_document(docx_file, rules_path: str) -> DocumentReviewResult:
         doc = Document(io.BytesIO(file_bytes))
     else:
         doc = Document(docx_file)
-    # Load 
+    
     rules = load_rules(rules_path)
     issues: List[Issue] = []
 
-    # Chinese numeral conversion helpers
+    # Chinese numeral conversion helpers (ensure these are correctly defined and comprehensive)
     def simple_chinese_to_int(s: str) -> Optional[int]:
         mapping = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
                    '十一': 11, '十二': 12, '十三': 13, '十四': 14, '十五': 15, '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十':20}
-        # Add more if needed, e.g., 二十一, etc.
+        # Extend this mapping as needed for numbers like 二十一, 三十, etc.
         return mapping.get(s)
 
     def int_to_simple_chinese(n: int) -> Optional[str]:
         mapping = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九', 10: '十',
                    11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五', 16: '十六', 17: '十七', 18: '十八', 19: '十九', 20:'二十'}
-        # Add more if needed
+        # Extend this mapping as needed
         return mapping.get(n)
 
-    # Rule 05-02: 标序问题-跳序问题 (一级标题 "一、")
-    level1_headings_text_parts = [] # Stores the numeral part like "一", "二"
-    level1_headings_full_text = [] # Stores full paragraph text like "一、XXXX"
-    
-    # Regex for "一、", "二、", ..., "十、", "十一、", etc. (simplified for now)
-    level1_pattern = re.compile(r"^([一二三四五六七八九十]+(?:[一二三四五六七八九])?)、")
-    i=0
-    for p in doc.paragraphs:
-        text_content = ''  # 初始化文本内容
-        # for run in p.runs:
-        #     text_content += run.text  # 拼接所有run的文本
-        text_content = p.text#.strip()
-        html_content=p.html
-        first_line_indent = p.paragraph_format.first_line_indent
-        i+=1
-        # with open("debug.csv", "a") as f:
-        print(f"{i}: {first_line_indent},{html_content},{text_content}\n")
-            
-        if not text_content: continue
-        match = level1_pattern.match(text_content)
-        if match:
-            level1_headings_text_parts.append(match.group(1)) 
-            level1_headings_full_text.append(text_content)
+    heading_configs = [
+        {
+            'level': 0,
+            'pattern': re.compile(r"^爱你在心口.*?"),
+            'jump_order_rule_id': '',
+            'font_style_rule_id': '15-02',
+            'font_rule': ['仿宋', 'FangSong', 'FangSong_GB2312'],
+            'bold': False,
+            'numeral_type': 'arabic'
+        },
+        {
+            'level': 1,
+            'pattern': re.compile(r"^([一二三四五六七八九十]+(?:[一二三四五六七八九])?)、"),
+            'jump_order_rule_id': '05-05', # Corresponds to '标序问题-一级标题跳序问题' (from user's original code for L1)
+                                         # If rules_p1.md has '05-05' for L1, update this ID.
+            'font_style_rule_id': '06-05',
+            'font_rule': ['黑体', 'SimHei'],
+            'bold': True,
+            'numeral_type': 'chinese'
+        },
+        {
+            'level': 2,
+            'pattern': re.compile(r"^[（(]([一二三四五六七八九十]+(?:[一二三四五六七八九])?)[)）]"),
+            'jump_order_rule_id': '05-03', # '标序问题-二级标题跳序问题'
+            'font_style_rule_id': '06-03',
+            'font_rule': ['楷体', 'KaiTi', 'STKaiti'],
+            'bold': False,
+            'numeral_type': 'chinese'
+        },
+        {
+            'level': 3,
+            'pattern': re.compile(r"^(\d+)\."),
+            'jump_order_rule_id': '05-04', # '标序问题-三级标题跳序问题'
+            'font_style_rule_id': '06-04',
+            'font_rule': ['仿宋', 'FangSong', 'FangSong_GB2312'],
+            'bold': False,
+            'numeral_type': 'arabic'
+        },
+        {
+            'level': 4,
+            'pattern': re.compile(r"^[（(](\d+)[)）]"),
+            'jump_order_rule_id': '05-02', # Assuming a rule like '05-05' exists for L4 jump order based on previous structure.
+                                         # Please verify/add this rule to rules_p1.md if it's different or missing.
+                                         # The original code had a '05-05' for L4 in the `heading_configs` example.
+            'font_style_rule_id': '06-02',
+            'font_rule': ['仿宋', 'FangSong', 'FangSong_GB2312'],
+            'bold': False,
+            'numeral_type': 'arabic'
+        }
+    ]
 
-    for i in range(len(level1_headings_text_parts) - 1):
-        current_num_str = level1_headings_text_parts[i]
-        next_actual_num_str = level1_headings_text_parts[i+1]
-        current_p_full_text = level1_headings_full_text[i+1]
+    collected_headings_by_level: List[List[Dict[str, Any]]] = [[] for _ in heading_configs]
 
-        current_val = simple_chinese_to_int(current_num_str)
-        next_actual_val = simple_chinese_to_int(next_actual_num_str)
-
-        if current_val is not None and next_actual_val is not None:
-            if next_actual_val != current_val + 1:
-                rule_info = rules.get("05-02", {})
-                expected_next_str = int_to_simple_chinese(current_val + 1)
-                issues.append(Issue(
-                    issueType=rule_info.get('type_scene', "标序问题-跳序问题"),
-                    specificWord=f"{next_actual_num_str}、",
-                    sentence=current_p_full_text,
-                    suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
-                    rule_id="05-02",
-                    additionalNotes=rule_info.get('description', f"标题序号不连续，期望是 {expected_next_str}、，实际是 {next_actual_num_str}、")
-                ))
-        # else: Consider logging a warning if conversion fails for a detected heading
-
-    # Standard two-character indent in EMUs (approx 0.85cm, common in Word for '2 char' indent)
-    # 1 inch = 914400 EMUs. 2 chars (e.g. 12pt SongTi, each char is 12pt wide) ~ 24pt.
-    # 24pt * 12700 EMU/pt = 304800 EMU.
+    # Standard two-character indent (value from original code)
     TWO_CHAR_INDENT_EMU = 2 
-    INDENT_TOLERANCE = 0# A tolerance for indent comparison (approx 0.5mm)
+    INDENT_TOLERANCE = 0
 
+    def get_dominant_font_properties(paragraph) -> tuple[Optional[str], Optional[bool]]:
+        run_details = []
+        total_text_len = 0
+        for run in paragraph.runs:
+            run_text = run.text
+            if run_text.strip():
+                run_len = len(run_text)
+                run_details.append({
+                    'len': run_len,
+                    'font_name': run.font.name,
+                    'bold': run.font.bold,
+                })
+                total_text_len += run_len
+        
+        if not run_details or total_text_len == 0: return None, None
+
+        font_counts = {}
+        for rd in run_details:
+            key = (rd['font_name'], rd['bold'])
+            font_counts[key] = font_counts.get(key, 0) + rd['len']
+        
+        if not font_counts: return None, None
+        
+        dominant_font_key = max(font_counts, key=font_counts.get)
+        return dominant_font_key[0], dominant_font_key[1]
+
+    def check_font_style(p_obj, p_text_content: str, rule_id: str, expected_fonts: List[str], expected_bold: Optional[bool]):
+        actual_font_name, actual_bold = get_dominant_font_properties(p_obj)
+        rule_info = rules.get(rule_id, {})
+        
+        font_ok = False
+        if actual_font_name:
+            for ef in expected_fonts:
+                if ef.lower() in actual_font_name.lower(): # Case-insensitive check for font name
+                    font_ok = True
+                    break
+        # If actual_font_name is None, font_ok remains False
+        
+        bold_ok = True 
+        if expected_bold is True and not actual_bold:
+            bold_ok = False
+        elif expected_bold is False and actual_bold is True:
+            bold_ok = False
+        
+        # SimHei/黑体 is often inherently bold or its 'bold' flag is set, so if expected bold, it's ok.
+        if actual_font_name and actual_font_name.lower() in ["simhei", "黑体"] and expected_bold is True:
+             bold_ok = True 
+
+        if not font_ok or not bold_ok:
+            notes = []
+            if not font_ok:
+                notes.append(f"字体应为 '{'/'.join(expected_fonts)}' 系列, 实际主要字体为 '{actual_font_name if actual_font_name else '未知'}'")
+            if not bold_ok:
+                expected_bold_str = "加粗" if expected_bold is True else ("不加粗" if expected_bold is False else "未指定")
+                actual_bold_str = "加粗" if actual_bold is True else ("不加粗" if actual_bold is False else "未明确")
+                notes.append(f"字体应 {expected_bold_str}, 实际 {actual_bold_str}")
+            
+            heading_prefix = p_text_content# Get ALL part as potential heading text
+            if len(heading_prefix) > 20: heading_prefix = heading_prefix[:WORD_LENGTH_THRESHOLD] + "..." # Truncate if too long
+
+            issues.append(Issue(
+                issueType=rule_info.get('type_scene', f"格式问题-{rule_id}"),
+                specificWord=heading_prefix,
+                sentence=p_text_content,
+                suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
+                rule_id=rule_id,
+                additionalNotes=f"{rule_info.get('description', '标题格式问题')}: {'; '.join(notes)}"
+            ))
+        FONT_SIZE=16
+        notes = []
+        crt_size=""
+        # 15-02  
+        rule_info = rules.get("15-02", {})
+        if p_obj.size != FONT_SIZE and p_obj.size is not None:
+            # crt_size=p_obj.font.size 
+            notes.append(f"字号大小应为{FONT_SIZE}磅，实际为{p_obj.size}磅")
+            issues.append(Issue(
+                issueType=rule_info.get('type_scene', f"正文字号应为16磅"),
+                specificWord=p_obj.text[:WORD_LENGTH_THRESHOLD],
+                sentence=p_obj.text,
+                suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
+                rule_id=rule_id,
+                additionalNotes=f"{rule_info.get('description', '字号错误')}: {'; '.join(notes)}"
+            ))
+
+        elif p_obj.size is None:
+            for run in p_obj.runs:
+                if run.font.size != FONT_SIZE:
+                    notes.append(f"字号大小应为{FONT_SIZE}磅，实际为{run.font.size}磅")
+                    issues.append(Issue(
+                    issueType=rule_info.get('type_scene', f"正文字号应为16磅"),
+                    specificWord=run.text[:WORD_LENGTH_THRESHOLD],
+                    sentence=run.text,
+                    suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
+                    rule_id=rule_id,
+                    additionalNotes=f"{rule_info.get('description', '字号错误')}: {'; '.join(notes)}"
+                ))
+
+    # Main loop to process paragraphs
     for p_idx, p in enumerate(doc.paragraphs):
-        text_content = p.text.strip()
-        if not text_content:
+        with open("debug.csv", "a") as f:
+            f.write(f"{p_idx},{p.info}\n")  # Debug print from original, commented out
+           
+        text_content = p.text # Use raw text for matching, strip later if needed for specificWord
+        # html_content = p.html # If needed
+        # first_line_indent = p.paragraph_format.first_line_indent # If needed
+        # print(f"{p_idx+1}: {first_line_indent},{text_content[:50]}\n") # Debug print from original, commented out
+
+        if not text_content.strip(): # Skip empty or whitespace-only paragraphs
             continue
 
-        # Define heading patterns - ensure they are mutually exclusive or checked in order
-        is_heading_level1 = bool(level1_pattern.match(text_content))
-        
-        level2_pattern_text = r"([一二三四五六七八九十]+(?:[一二三四五六七八九])?)"
-        level2_pattern_full = re.compile(f"^[（(]{level2_pattern_text}[)）]")
-        is_heading_level2 = bool(level2_pattern_full.match(text_content))
-        
-        level3_pattern_text = r"(\d+)"
-        level3_pattern = re.compile(f"^{level3_pattern_text}\.")
-        is_heading_level3 = bool(level3_pattern.match(text_content))
-        
-        level4_pattern_text = r"(\d+)"
-        level4_pattern_full = re.compile(f"^[（(]{level4_pattern_text}[)）]")
-        is_heading_level4 = bool(level4_pattern_full.match(text_content))
-        
-        is_any_known_heading = is_heading_level1 or is_heading_level2 or is_heading_level3 or is_heading_level4
+        is_any_known_heading = False
+        for level_idx, config in enumerate(heading_configs):
+            match = config['pattern'].match(text_content)
+            if match and level_idx!=0:
+                is_any_known_heading = True
+                numeral_part_str = match.group(1)
+                full_heading_prefix = match.group(0)
+                
+                collected_headings_by_level[level_idx].append({
+                    'num_str': numeral_part_str,
+                    'text': text_content.strip(), # Store stripped text for sentence context
+                    'paragraph_obj': p,
+                    'prefix': full_heading_prefix
+                })
+                
+                # Check font style for this heading
+                check_font_style(p, text_content.strip(), 
+                                 config['font_style_rule_id'], 
+                                 config['font_rule'], 
+                                 config['bold'])
+                break # Paragraph is classified as one heading type, move to next paragraph
 
-        # Rule 14-02: 段落-自然段左空两字
+        # Paragraph indentation and hanging indent checks (Rules 14-02, 14-03)
         if not is_any_known_heading: 
+            stripped_text_content = text_content.strip()
+            # Rule 14-02: 段落-自然段左空两字
             first_line_indent = p.paragraph_format.first_line_indent
-            # Check if first_line_indent is None or less than expected (with tolerance)
-            if first_line_indent is None or first_line_indent != TWO_CHAR_INDENT_EMU:
+            if first_line_indent is None or first_line_indent != TWO_CHAR_INDENT_EMU: 
                 rule_info = rules.get("14-02", {})
                 issues.append(Issue(
                     issueType=rule_info.get('type_scene', "段落-自然段左空两字"),
-                    specificWord=text_content[:20] ,
-                    sentence=text_content,
+                    specificWord=stripped_text_content[:WORD_LENGTH_THRESHOLD],
+                    sentence=stripped_text_content,
                     suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
                     rule_id="14-02",
                     additionalNotes=rule_info.get('description', "段落首行应当左空二字")
                 ))
             
-        # Rule 14-03: 段落- 回行顶格 (applies to non-heading paragraphs)
-        if not is_any_known_heading:
-            left_indent = p.paragraph_format.left_indent
-            # Check if left_indent is not None and greater than tolerance (i.e., has some left indent)
-            if left_indent is not None and left_indent > INDENT_TOLERANCE: 
-                rule_info = rules.get("14-03", {})
-                issues.append(Issue(
-                    issueType=rule_info.get('type_scene', "段落- 回行顶格"),
-                    specificWord=text_content[:20] ,
-                    sentence=text_content,
-                    suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
-                    rule_id="14-03",
-                    additionalNotes=rule_info.get('description', "段落回行应顶格（段落整体左侧不应有额外缩进）")
-                ))
+            # Rule 14-03: 段落- 回行顶格
+            # left_indent = p.paragraph_format.left_indent
+            # if left_indent is not None and left_indent > INDENT_TOLERANCE: 
+            #     rule_info = rules.get("14-03", {})
+            #     issues.append(Issue(
+            #         issueType=rule_info.get('type_scene', "段落- 回行顶格"),
+            #         specificWord=stripped_text_content[:WORD_LENGTH_THRESHOLD],
+            #         sentence=stripped_text_content,
+            #         suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
+            #         rule_id="14-03",
+            #         additionalNotes=rule_info.get('description', "段落回行应顶格（段落整体左侧不应有额外缩进）")
+            #     ))
 
-        def get_dominant_font_properties(paragraph):
-            run_details = []
-            total_text_len = 0
-            for run in paragraph.runs:
-                run_text = run.text
-                if run_text.strip(): # Consider only runs with actual text
-                    run_len = len(run_text)
-                    run_details.append({
-                        'len': run_len,
-                        'font_name': run.font.name,
-                        'bold': run.font.bold,
-                    })
-                    total_text_len += run_len
+    # Check for jump-order issues in collected headings
+    for level_idx, headings_at_this_level in enumerate(collected_headings_by_level):
+        config = heading_configs[level_idx]
+        numeral_type = config['numeral_type']
+        jump_order_rule_id = config['jump_order_rule_id']
+
+        for i in range(len(headings_at_this_level) - 1):
+            current_heading = headings_at_this_level[i]
+            next_heading = headings_at_this_level[i+1]
+
+            current_val: Optional[int] = None
+            next_actual_val: Optional[int] = None
+            expected_next_num_str_func = str # Default for arabic if not chinese
+
+            if numeral_type == 'chinese':
+                current_val = simple_chinese_to_int(current_heading['num_str'])
+                next_actual_val = simple_chinese_to_int(next_heading['num_str'])
+                expected_next_num_str_func = int_to_simple_chinese
+            elif numeral_type == 'arabic':
+                try:
+                    current_val = int(current_heading['num_str'])
+                    next_actual_val = int(next_heading['num_str'])
+                except ValueError:
+                    # Log or handle non-integer numerals if they are not expected
+                    # print(f"Warning: Could not convert numeral '{current_heading['num_str']}' or '{next_heading['num_str']}' to int for level {config['level']}")
+                    continue 
             
-            if not run_details or total_text_len == 0: return None, None
+            if current_val is not None and next_actual_val is not None:
+                if next_actual_val != current_val + 1:
+                    rule_info = rules.get(jump_order_rule_id, {})
+                    expected_num_val = current_val + 1
+                    expected_num_val_str = expected_next_num_str_func(expected_num_val)
+                    if expected_num_val_str is None and numeral_type == 'chinese': # Fallback if int_to_simple_chinese returns None
+                        expected_num_val_str = str(expected_num_val) 
+                    elif expected_num_val_str is None: # Should not happen for arabic if conversion was successful
+                         expected_num_val_str = "?"
 
-            font_counts = {}
-            for rd in run_details:
-                key = (rd['font_name'], rd['bold'])
-                font_counts[key] = font_counts.get(key, 0) + rd['len']
-            
-            if not font_counts: return None, None
-            
-            dominant_font_key = max(font_counts, key=font_counts.get)
-            return dominant_font_key[0], dominant_font_key[1]
-
-        def check_font_style(p_obj, p_text_content: str, rule_id: str, expected_fonts: List[str], expected_bold: Optional[bool]):
-            actual_font_name, actual_bold = get_dominant_font_properties(p_obj)
-            rule_info = rules.get(rule_id, {})
-            
-            font_ok = False
-            if actual_font_name:
-                for ef in expected_fonts:
-                    if ef.lower() in actual_font_name.lower():
-                        font_ok = True
-                        break
-            else: # No dominant font found, likely an issue or empty runs with formatting
-                font_ok = False 
-            
-            # Handling bold: If expected_bold is True, actual_bold must be True.
-            # If expected_bold is False, actual_bold must be False or None.
-            # If expected_bold is None, actual_bold can be anything (not checked).
-            bold_ok = True # Assume ok unless a specific check fails
-            if expected_bold is True and not actual_bold:
-                bold_ok = False
-            elif expected_bold is False and actual_bold is True:
-                bold_ok = False
-            
-            # Special case for 黑体/SimHei which is often inherently bold or its 'bold' flag is set
-            if actual_font_name and actual_font_name.lower() in ["simhei", "黑体"] and expected_bold is True:
-                 bold_ok = True 
-
-            if not font_ok or not bold_ok:
-                notes = []
-                if not font_ok:
-                    notes.append(f"字体应为 '{'/'.join(expected_fonts)}' 系列, 实际主要字体为 '{actual_font_name if actual_font_name else '未知'}'")
-                if not bold_ok:
-                    expected_bold_str = "加粗" if expected_bold is True else ("不加粗" if expected_bold is False else "未指定")
-                    actual_bold_str = "加粗" if actual_bold is True else ("不加粗" if actual_bold is False else "未明确") # actual_bold can be None
-                    notes.append(f"字体应 {expected_bold_str}, 实际 {actual_bold_str}")
-                
-                # Try to get the heading prefix for specificWord
-                heading_prefix = p_text_content.split(' ')[0]
-                if len(heading_prefix) > 15: heading_prefix = heading_prefix[:15] 
-
-                issues.append(Issue(
-                    issueType=rule_info.get('type_scene', f"格式问题-{rule_id}"),
-                    specificWord=heading_prefix,
-                    sentence=p_text_content,
-                    suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
-                    rule_id=rule_id,
-                    additionalNotes=f"{rule_info.get('description', '标题格式问题')}: {'; '.join(notes)}"
-                ))
-
-        # Rule 06-05: 结构-一级标题格式 (一、，黑体)
-        if is_heading_level1:
-            check_font_style(p, text_content, "06-05", ["黑体", "SimHei"], expected_bold=True)
-
-        # Rule 06-03: 结构-二级标题格式 ((一)，楷体)
-        if is_heading_level2:
-            check_font_style(p, text_content, "06-03", ["楷体", "KaiTi", "STKaiti"], expected_bold=False) # Typically not bold
-
-        # Rule 06-04: 结构-三级标题格式 (1.，仿宋_GB2312)
-        if is_heading_level3:
-            check_font_style(p, text_content, "06-04", ["仿宋", "FangSong", "FangSong_GB2312"], expected_bold=False)
-
-        # Rule 06-02: 结构-四级标题格式 ((1)，仿宋_GB2312)
-        if is_heading_level4:
-            check_font_style(p, text_content, "06-02", ["仿宋", "FangSong", "FangSong_GB2312"], expected_bold=False)
+                    issues.append(Issue(
+                        issueType=rule_info.get('type_scene', f"标序问题-跳序问题 (L{config['level']})"),
+                        specificWord=next_heading['prefix'], 
+                        sentence=next_heading['text'],
+                        suggestion=Suggestion(operation=rule_info.get('operation_suggestion', "提醒"), after=""),
+                        rule_id=jump_order_rule_id,
+                        additionalNotes=rule_info.get('description', 
+                            f"标题序号不连续。在 '{current_heading['prefix']}' 之后，期望序号为 '{expected_num_val_str}'，实际为 '{next_heading['num_str']}'.")
+                    ))
+            # else: Consider logging if numeral conversion failed for a detected heading
 
     return DocumentReviewResult(issues=issues)
 
@@ -317,7 +390,7 @@ def validate_and_output_json(docx_file, rules_path: str) -> dict:
 
 if __name__ == "__main__":
     # 使用示例文件进行测试
-    docx_file="./标准测试html.txt"
+    docx_file="./p1.txt"
     # docx_file="./转完p1.docx"
     rules_file = "./rules_p1.md"
     output_file = "./validation_result.json"

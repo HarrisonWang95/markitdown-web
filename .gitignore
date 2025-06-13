@@ -29,3 +29,8 @@ test*
 *.ico
 *.svg
 *.webp
+*.sh
+*.txt
+*.html
+*.pyc
+*.mp3
